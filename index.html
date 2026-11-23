@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Încărcare EV">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1d7a5f">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Calculator încărcare EV</title>
+<style>
+:root{--bg:#f5f4f0;--card:#fff;--text:#1f1f1d;--muted:#6b6a65;--line:#dcdad2;--accent:#1d7a5f;--accent-bg:#e1f5ee;--danger:#a32d2d;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1b1b19;--card:#262624;--text:#f1efe8;--muted:#a9a79e;--line:#3a3a37;--accent:#5dcaa5;--accent-bg:#04342c;--danger:#f09595;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#1b1b19;--card:#262624;--text:#f1efe8;--muted:#a9a79e;--line:#3a3a37;--accent:#5dcaa5;--accent-bg:#04342c;--danger:#f09595;color-scheme:dark}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.5;min-height:100vh}
+main{max-width:460px;margin:0 auto;padding:20px 16px 32px}
+h1{font-size:22px;font-weight:500;margin:0 0 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:0 0 14px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+label{display:block;font-size:13px;color:var(--muted);margin:0 0 4px}
+input{width:100%;font:inherit;font-size:18px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text)}
+input:focus{outline:2px solid var(--accent);outline-offset:1px}
+.full{margin-top:12px}
+.err{font-size:13px;color:var(--danger);min-height:20px;margin:0 0 10px}
+.res{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.m{background:var(--accent-bg);border-radius:12px;padding:14px}
+.m p{margin:0}
+.m .l{font-size:13px;color:var(--muted)}
+.m .v{font-size:26px;font-weight:500;color:var(--accent);margin-top:2px}
+.sub{font-size:13px;color:var(--muted);margin:12px 0 0}
+</style>
+</head>
+<body>
+<main>
+<h1>Calculator încărcare EV</h1>
+<div class="card">
+<div class="grid">
+<div><label for="cap">Baterie (kWh)</label><input id="cap" type="number" inputmode="decimal" step="0.1" value="69"></div>
+<div><label for="pr">Preț (lei/kWh)</label><input id="pr" type="number" inputmode="decimal" step="0.01" value="5"></div>
+<div><label for="cur">Acum (%)</label><input id="cur" type="number" inputmode="decimal" step="1" value="30"></div>
+<div><label for="tgt">Limită (%)</label><input id="tgt" type="number" inputmode="decimal" step="1" value="90"></div>
+</div>
+<div class="full"><label for="loss">Pierderi la încărcare (%, opțional)</label><input id="loss" type="number" inputmode="decimal" step="1" value="0"></div>
+</div>
+<p class="err" id="err"></p>
+<div class="res">
+<div class="m"><p class="l">Energie</p><p class="v" id="kwh">–</p></div>
+<div class="m"><p class="l">Cost total</p><p class="v" id="cost">–</p></div>
+</div>
+<p class="sub" id="sub"></p>
+</main>
+<script>
+var $=function(id){return document.getElementById(id)};
+var ids=['cap','pr','cur','tgt','loss'];
+function fmt(n,d){return n.toLocaleString('ro-RO',{minimumFractionDigits:d,maximumFractionDigits:d})}
+function save(){try{var o={};ids.forEach(function(i){o[i]=$(i).value});localStorage.setItem('ev-calc',JSON.stringify(o))}catch(e){}}
+function load(){try{var s=localStorage.getItem('ev-calc');if(!s)return;var o=JSON.parse(s);ids.forEach(function(i){if(o[i]!==undefined)$(i).value=o[i]})}catch(e){}}
+function calc(){
+var cap=parseFloat($('cap').value),pr=parseFloat($('pr').value),cur=parseFloat($('cur').value),tgt=parseFloat($('tgt').value),loss=parseFloat($('loss').value)||0,e='';
+if([cap,pr,cur,tgt].some(isNaN))e='Completează toate câmpurile.';
+else if(cur<0||cur>100||tgt<0||tgt>100)e='Procentele trebuie să fie între 0 și 100.';
+else if(tgt<=cur)e='Limita trebuie să fie mai mare decât nivelul actual.';
+else if(loss<0||loss>=100)e='Pierderile trebuie să fie între 0 și 99.';
+$('err').textContent=e;
+if(e){$('kwh').textContent='–';$('cost').textContent='–';$('sub').textContent='';return}
+var kwh=cap*(tgt-cur)/100/(1-loss/100);
+$('kwh').textContent=fmt(kwh,1)+' kWh';
+$('cost').textContent=fmt(kwh*pr,2)+' lei';
+$('sub').textContent='De la '+fmt(cur,0)+'% la '+fmt(tgt,0)+'%, adică '+fmt(tgt-cur,0)+'% din baterie.';
+save();
+}
+load();
+ids.forEach(function(i){$(i).addEventListener('input',calc)});
+calc();
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(function(){})}
+</script>
+</body>
+</html>
